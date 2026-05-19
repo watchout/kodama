@@ -1,0 +1,41 @@
+# .cursorrules - IDE Instructions
+
+## Project: kodama
+
+Shared context network MCP server for humans and agents
+
+## Highest Priority Rule
+
+When specification is unclear or missing, STOP and ask. Do not guess.
+
+## Before Coding
+
+1. Read the relevant feature spec in docs/design/features/
+2. Check core definitions in docs/design/core/
+3. Follow coding standards in docs/standards/
+
+## Tech Stack
+
+- Next.js 15 (App Router)
+- React 19
+- TypeScript 5.7
+- Vitest for testing
+- Vercel for hosting
+
+## Code Style
+
+- PascalCase for components
+- camelCase for functions/variables
+- UPPER_SNAKE_CASE for constants
+- kebab-case for non-component files
+- ~200 lines max per file
+- No `any`, no `console.log` in production
+
+## Specification Locations
+
+- PRD: docs/requirements/SSOT-0_PRD.md
+- Features: docs/requirements/SSOT-1_FEATURE_CATALOG.md
+- UI/State: docs/design/core/SSOT-2_UI_STATE.md
+- API: docs/design/core/SSOT-3_API_CONTRACT.md
+- Data: docs/design/core/SSOT-4_DATA_MODEL.md
+- Cross-cutting: docs/design/core/SSOT-5_CROSS_CUTTING.md

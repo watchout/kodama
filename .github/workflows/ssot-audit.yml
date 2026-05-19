@@ -1,0 +1,144 @@
+# ssot-audit.yml - SSOT品質監査ワークフロー
+# docs/ 配下のSSOTファイルが変更されたPRで自動実行
+# スコアが閾値（90点）未満の場合、PRをブロック
+
+name: SSOT Audit
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**/*.md'
+
+env:
+  SSOT_SCORE_THRESHOLD: 90
+
+jobs:
+  ssot-audit:
+    name: SSOT Quality Audit
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Detect changed SSOT files
+        id: changed
+        run: |
+          CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..HEAD -- 'docs/**/*.md' | grep -E 'SSOT-|_PRD|_ARCHITECTURE|_UI_STATE|_API_CONTRACT|_DATA_MODEL|_CROSS_CUTTING' || true)
+          if [ -z "$CHANGED" ]; then
+            echo "files=" >> "$GITHUB_OUTPUT"
+            echo "has_ssot=false" >> "$GITHUB_OUTPUT"
+          else
+            # Escape newlines for multiline output
+            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            echo "files<<$EOF" >> "$GITHUB_OUTPUT"
+            echo "$CHANGED" >> "$GITHUB_OUTPUT"
+            echo "$EOF" >> "$GITHUB_OUTPUT"
+            echo "has_ssot=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run SSOT audit
+        if: steps.changed.outputs.has_ssot == 'true'
+        id: audit
+        run: |
+          mkdir -p docs/.audit
+          OVERALL_PASS=true
+          REPORT=""
+
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            echo "Auditing: $file"
+
+            # Keep this workflow self-contained so downstream projects do not
+            # depend on an unpublished or conflicting global framework CLI.
+            OUTPUT=$(FILE="$file" node -e '
+              const fs = require("node:fs");
+              const file = process.env.FILE;
+              const text = fs.readFileSync(file, "utf8");
+              const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+              const headings = lines.filter((line) => /^#{1,3}\s+\S/.test(line)).length;
+              const hasTitle = /^#\s+\S/m.test(text);
+              const hasTraceability = /traceability|source|provenance|requirement|contract|model|acceptance/i.test(text);
+              const hasEnoughContent = lines.length >= 20;
+              let score = 0;
+              if (hasTitle) score += 25;
+              if (headings >= 3) score += 25;
+              if (hasEnoughContent) score += 25;
+              if (hasTraceability) score += 25;
+              console.log(`File: ${file}`);
+              console.log(`Score: ${score}`);
+              console.log(`Headings: ${headings}`);
+              console.log(`Non-empty lines: ${lines.length}`);
+            ') || true
+            SCORE=$(echo "$OUTPUT" | grep -oP 'Score:\s*\K[0-9]+' || echo "0")
+
+            # Save individual audit result
+            BASENAME=$(basename "$file" .md)
+            echo "$OUTPUT" > "docs/.audit/${BASENAME}.audit.txt"
+
+            if [ "$SCORE" -lt "$SSOT_SCORE_THRESHOLD" ]; then
+              OVERALL_PASS=false
+              REPORT="${REPORT}| ${file} | ${SCORE} | FAIL |\n"
+            else
+              REPORT="${REPORT}| ${file} | ${SCORE} | PASS |\n"
+            fi
+          done <<< "${{ steps.changed.outputs.files }}"
+
+          echo "pass=$OVERALL_PASS" >> "$GITHUB_OUTPUT"
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "report<<$EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$REPORT" >> "$GITHUB_OUTPUT"
+          echo "$EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Upload audit results
+        if: steps.changed.outputs.has_ssot == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssot-audit-results
+          path: docs/.audit/
+          retention-days: 30
+
+      - name: Comment PR with audit results
+        if: steps.changed.outputs.has_ssot == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pass = '${{ steps.audit.outputs.pass }}' === 'true';
+            const report = `${{ steps.audit.outputs.report }}`;
+            const icon = pass ? '✅' : '❌';
+
+            const body = `## ${icon} SSOT Audit Results
+
+            | File | Score | Status |
+            |------|-------|--------|
+            ${report}
+
+            **Threshold:** ${process.env.SSOT_SCORE_THRESHOLD} points
+            ${pass ? '' : '⚠️ One or more SSOT documents scored below the threshold. Please improve document quality before merging.'}
+            `;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Fail if below threshold
+        if: steps.changed.outputs.has_ssot == 'true' && steps.audit.outputs.pass == 'false'
+        run: |
+          echo "::error::SSOT audit failed. One or more documents scored below ${SSOT_SCORE_THRESHOLD}."
+          exit 1

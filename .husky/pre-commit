@@ -1,0 +1,22 @@
+#!/bin/sh
+# === Pre-Code Gate (framework) ===
+# Smart Blocking (ADR-009): block commits with product code changes when gates not passed.
+# Always-allowed: docs/ .env* .framework/ .claude/ .github/ prisma/ drizzle/ CLAUDE.md README.md LICENSE package*.json pnpm-lock.yaml
+# Blocked: src/ app/ server/ lib/ components/ pages/ composables/ utils/ stores/ plugins/ scripts/
+HAS_BLOCKED_FILES=false
+while IFS= read -r staged_file; do
+  case "$staged_file" in
+    docs/*|.framework/*|.claude/*|.github/*|prisma/*|drizzle/*) continue ;;
+    CLAUDE.md|README.md|LICENSE|package.json|package-lock.json|pnpm-lock.yaml) continue ;;
+    .env|.env.*) continue ;;
+    src/*|app/*|server/*|lib/*|components/*|pages/*|composables/*|utils/*|stores/*|plugins/*|scripts/*)
+      HAS_BLOCKED_FILES=true
+      break
+      ;;
+    *) continue ;;
+  esac
+done <<< "$(git diff --cached --name-only)"
+if [ "$HAS_BLOCKED_FILES" = "true" ] && command -v framework >/dev/null 2>&1; then
+  framework gate check || { echo "[Pre-Code Gate] COMMIT BLOCKED — product code requires all gates passed"; exit 1; }
+fi
+# === End Pre-Code Gate (framework) ===
