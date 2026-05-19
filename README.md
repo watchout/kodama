@@ -66,3 +66,13 @@ Your data stays where it is. Your agents get one context interface.
 
 Early concept repository. The initial architecture and design notes are in [docs/initial-design.md](docs/initial-design.md).
 
+## Development
+
+Kodama uses the Shirube `mcp-server` profile for spec-first development and gate checks.
+
+```bash
+npm install
+npm run build
+npm test
+node ../ai-dev-framework/dist/cli/index.js gate check
+```

@@ -1,0 +1,30 @@
+{
+  "name": "kodama",
+  "version": "0.1.0",
+  "profileType": "mcp-server",
+  "createdAt": "2026-05-19T07:11:51.429Z",
+  "updatedAt": "2026-05-19T07:11:51.429Z",
+  "phase": -1,
+  "status": "initialized",
+  "techStack": {
+    "framework": "mcp-server",
+    "language": "typescript",
+    "runtime": "node.js",
+    "transport": "stdio/http",
+    "database": "storage-adapter",
+    "testing": "vitest",
+    "hosting": "stdio / npm registry"
+  },
+  "config": {
+    "aiProvider": "anthropic",
+    "aiModel": "claude-sonnet-4-20250514",
+    "autoCommit": false,
+    "escalationMode": "strict"
+  },
+  "testing": {
+    "l1": {
+      "tool": "vitest",
+      "autoDetected": true
+    }
+  }
+}

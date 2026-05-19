@@ -1,0 +1,72 @@
+{
+  "status": "generated",
+  "generatedAt": "2026-05-19T07:20:00.000Z",
+  "updatedAt": "2026-05-19T07:20:00.000Z",
+  "waves": [
+    {
+      "number": 1,
+      "phase": "common",
+      "layer": 1,
+      "title": "MVP source registry foundation",
+      "features": [
+        {
+          "id": "SOURCEREGISTRY-001",
+          "name": "Source Registry",
+          "priority": "P0",
+          "size": "M",
+          "type": "common",
+          "dependencies": [],
+          "dependencyCount": 0,
+          "ssotFile": "docs/spec/SOURCEREGISTRY-001.md"
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "SOURCEREGISTRY-001-test",
+      "featureId": "SOURCEREGISTRY-001",
+      "kind": "test",
+      "name": "Testing (TDD)",
+      "references": ["docs/verify/SOURCEREGISTRY-001.md"],
+      "blockedBy": [],
+      "blocks": ["SOURCEREGISTRY-001-api"],
+      "size": "M",
+      "seq": "1000100010"
+    },
+    {
+      "id": "SOURCEREGISTRY-001-db",
+      "featureId": "SOURCEREGISTRY-001",
+      "kind": "db",
+      "name": "Storage model",
+      "references": ["docs/design/core/SSOT-4_DATA_MODEL.md"],
+      "blockedBy": ["SOURCEREGISTRY-001-test"],
+      "blocks": ["SOURCEREGISTRY-001-api"],
+      "size": "M",
+      "seq": "1000100020"
+    },
+    {
+      "id": "SOURCEREGISTRY-001-api",
+      "featureId": "SOURCEREGISTRY-001",
+      "kind": "api",
+      "name": "MCP tool contract",
+      "references": ["docs/design/core/SSOT-3_API_CONTRACT.md"],
+      "blockedBy": ["SOURCEREGISTRY-001-db"],
+      "blocks": ["SOURCEREGISTRY-001-review"],
+      "size": "M",
+      "seq": "1000100030"
+    },
+    {
+      "id": "SOURCEREGISTRY-001-review",
+      "featureId": "SOURCEREGISTRY-001",
+      "kind": "review",
+      "name": "Code Audit",
+      "references": ["docs/spec/SOURCEREGISTRY-001.md"],
+      "blockedBy": ["SOURCEREGISTRY-001-api"],
+      "blocks": [],
+      "size": "S",
+      "seq": "1000100040"
+    }
+  ],
+  "circularDependencies": []
+}

@@ -1,0 +1,8 @@
+{
+  "provider": {
+    "default": "claude"
+  },
+  "docs_layers": {
+    "enabled": true
+  }
+}
