@@ -45,7 +45,7 @@
         "message": "Framework management (.framework/): found"
       }
     ],
-    "checkedAt": "2026-05-20T00:50:27.575Z"
+    "checkedAt": "2026-05-20T01:49:58.535Z"
   },
   "gateB": {
     "status": "failed",
@@ -75,7 +75,7 @@
         "message": "Feature specs are not implementation-ready: SOURCEREGISTRY-001:MissingRequiredSection, SOURCEREGISTRY-001:MissingRequiredSection, SOURCEREGISTRY-001:MissingRequiredSection, SOURCEREGISTRY-001:MissingRequiredSection, SOURCEREGISTRY-001:MissingControlMechanism, SOURCEREGISTRY-001:PlaceholderContent, SOURCEREGISTRY-001:EmptyGherkinStep"
       }
     ],
-    "checkedAt": "2026-05-20T00:50:27.577Z"
+    "checkedAt": "2026-05-20T01:49:58.538Z"
   },
   "gateC": {
     "status": "failed",
@@ -97,7 +97,7 @@
         ]
       }
     ],
-    "checkedAt": "2026-05-20T00:50:27.578Z"
+    "checkedAt": "2026-05-20T01:49:58.539Z"
   },
-  "updatedAt": "2026-05-20T00:50:27.578Z"
+  "updatedAt": "2026-05-20T01:49:58.539Z"
 }
