@@ -45,10 +45,10 @@
         "message": "Framework management (.framework/): found"
       }
     ],
-    "checkedAt": "2026-05-20T01:49:58.535Z"
+    "checkedAt": "2026-05-21T00:15:12.730Z"
   },
   "gateB": {
-    "status": "failed",
+    "status": "passed",
     "checks": [
       {
         "name": "Implementation plan (.framework/plan.json)",
@@ -70,34 +70,34 @@
       },
       {
         "name": "4-layer docs implementation readiness",
-        "passed": false,
-        "status": "fail",
-        "message": "Feature specs are not implementation-ready: SOURCEREGISTRY-001:MissingRequiredSection, SOURCEREGISTRY-001:MissingRequiredSection, SOURCEREGISTRY-001:MissingRequiredSection, SOURCEREGISTRY-001:MissingRequiredSection, SOURCEREGISTRY-001:MissingControlMechanism, SOURCEREGISTRY-001:PlaceholderContent, SOURCEREGISTRY-001:EmptyGherkinStep"
+        "passed": true,
+        "status": "pass",
+        "message": "Feature SPEC/IMPL/VERIFY/OPS docs are ready for implementation"
       }
     ],
-    "checkedAt": "2026-05-20T01:49:58.538Z"
+    "checkedAt": "2026-05-21T00:15:12.734Z"
   },
   "gateC": {
-    "status": "failed",
+    "status": "passed",
     "checks": [
       {
         "name": "Gate C (4-layer feature docs)",
-        "passed": false,
-        "status": "fail",
-        "message": "Feature specs are not implementation-ready: SOURCEREGISTRY-001:MissingRequiredSection, SOURCEREGISTRY-001:MissingRequiredSection, SOURCEREGISTRY-001:MissingRequiredSection, SOURCEREGISTRY-001:MissingRequiredSection, SOURCEREGISTRY-001:MissingControlMechanism, SOURCEREGISTRY-001:PlaceholderContent, SOURCEREGISTRY-001:EmptyGherkinStep",
+        "passed": true,
+        "status": "pass",
+        "message": "4-layer feature docs validated (1 spec files, 4 trace nodes)",
         "filePath": "docs/spec",
-        "missingSections": [
-          "SOURCEREGISTRY-001:MissingRequiredSection",
-          "SOURCEREGISTRY-001:MissingRequiredSection",
-          "SOURCEREGISTRY-001:MissingRequiredSection",
-          "SOURCEREGISTRY-001:MissingRequiredSection",
-          "SOURCEREGISTRY-001:MissingControlMechanism",
-          "SOURCEREGISTRY-001:PlaceholderContent",
-          "SOURCEREGISTRY-001:EmptyGherkinStep"
-        ]
+        "missingSections": []
+      },
+      {
+        "name": "Gate C (new-format SSOT-0~5)",
+        "passed": true,
+        "status": "pass",
+        "message": "New-format SSOT detected (3 files: docs/requirements/SSOT-0_PRD.md, docs/design/core/SSOT-3_API_CONTRACT.md, docs/design/core/SSOT-4_DATA_MODEL.md). Gate C auto-passed.",
+        "filePath": "",
+        "missingSections": []
       }
     ],
-    "checkedAt": "2026-05-20T01:49:58.539Z"
+    "checkedAt": "2026-05-21T00:15:12.735Z"
   },
-  "updatedAt": "2026-05-20T01:49:58.539Z"
+  "updatedAt": "2026-05-21T00:15:12.735Z"
 }

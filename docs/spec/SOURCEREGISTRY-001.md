@@ -7,176 +7,302 @@ traces:
   ops: [OPS-SOURCEREGISTRY-001-001]
 ---
 
-# SPEC: sourceregistry-001
+# SPEC: Source Registry
 
 ## 0. メタ
-- 作成日:
-- 関連ADR:
+- 作成日: 2026-05-20
+- 対象 feature: SOURCEREGISTRY-001
+- 対象 MCP tool: `kodama.register_source`
+- 関連 PRD: `docs/requirements/SSOT-0_PRD.md`
+- 関連 API contract: `docs/design/core/SSOT-3_API_CONTRACT.md`
+- 関連 data model: `docs/design/core/SSOT-4_DATA_MODEL.md`
 
-## 1. 目的 (Goals) [必須]
-## 2. 非目的 (Non-goals) [必須]
-## 3. ユーザーストーリー [必須]
+## 1. 目的
+Source Registry は、Kodama が参照または同期する外部 source を MCP-compatible agent から登録できるようにする。登録時には source type、表示名、adapter config、storage mode を検証し、後続の sync/search/context retrieval が同じ source identity を参照できる状態を作る。
 
-## 4. 機能要件 (Core) [必須]
-### 4.1 [SPEC-SOURCEREGISTRY-001-001] <要件名>
+## 2. 非目的
+- Source の内容をこの機能内で取り込まない。取り込みは `kodama.sync_source` が扱う。
+- Search、context pack 生成、回答生成、memory promotion は扱わない。
+- GitHub API や local filesystem への接続確認は登録時の必須処理にしない。登録は configuration validation と identity persistence に限定する。
+- HTTP transport はこの feature の対象外とし、初期実装は stdio MCP server 上の tool contract を対象にする。
 
-## 5. インターフェース (Contract) [必須]
-### 5.1 API契約（OpenAPI フラグメント推奨）
-### 5.2 DBスキーマ
-### 5.3 イベント/メッセージ [該当時]
+## 3. ユーザーストーリー
+- AI-native engineering team の agent operator として、local file tree を Kodama source として登録し、後続タスクで同じ source を同期できるようにしたい。
+- AI-native engineering team の agent operator として、GitHub repository を Kodama source として登録し、issue、PR、code context の取得対象にしたい。
+- MCP-compatible agent として、不正な source type や storage mode を送った場合に、安定した error code と readable message を受け取りたい。
 
-## 6. 非機能要件 (Detail) [必須]
+## 4. 機能要件
+### 4.1 FR-SOURCEREGISTRY-001: Source 登録
+`kodama.register_source` は、`type`、`name`、`config`、`storage_mode` を受け取り、source record を作成して `source_id` と `status: "registered"` を返す。
+
+### 4.2 FR-SOURCEREGISTRY-002: 対応 source type
+MVP で登録可能な source type は `local_files` と `github` のみとする。その他の type は `UNSUPPORTED_SOURCE_TYPE` を返す。
+
+### 4.3 FR-SOURCEREGISTRY-003: Storage mode
+Storage mode は `copy`、`index`、`reference`、`ephemeral` のみを受け付ける。各 mode の意味は `SSOT-4_DATA_MODEL.md` の Storage Modes に従う。
+
+### 4.4 FR-SOURCEREGISTRY-004: 入力検証
+`name` は trim 後 1 文字以上 120 文字以下でなければならない。`config` は JSON object でなければならない。source type ごとの最低 config は実装で型定義し、未知 key は保存してよいが、必須 key 欠落は `INVALID_SOURCE_CONFIG` とする。
+
+### 4.5 FR-SOURCEREGISTRY-005: Source identity
+`source_id` は Kodama 内で一意かつ推測困難な string とする。同じ name や config の再登録は新しい `source_id` を返す。重複統合は post-MVP の対象とする。
+
+### 4.6 FR-SOURCEREGISTRY-006: Auditability
+登録成功、validation failure、unsupported adapter は structured audit event として記録できる境界を service 層に設ける。初期実装で永続 audit log が未接続の場合も、service interface は audit event を失わない設計にする。
+
+## 5. インターフェース
+### 5.1 MCP tool contract
+Tool name: `kodama.register_source`
+
+Input fields:
+
+| field | type | required | rule |
+|---|---|---:|---|
+| `type` | enum | yes | `local_files` or `github` |
+| `name` | string | yes | trim 後 1 から 120 文字 |
+| `config` | object | yes | source type ごとの必須 key を満たす JSON object |
+| `storage_mode` | enum | yes | `copy`, `index`, `reference`, `ephemeral` |
+
+Output fields:
+
+| field | type | rule |
+|---|---|---|
+| `source_id` | string | Kodama 内で一意 |
+| `status` | enum | `registered` |
+
+### 5.2 Source type config
+`local_files` config:
+
+| field | type | required | rule |
+|---|---|---:|---|
+| `root_path` | string | yes | 空文字不可。path traversal の正規化は adapter 層で行う |
+| `include_globs` | string array | no | 指定時は各 item が空文字不可 |
+| `exclude_globs` | string array | no | 指定時は各 item が空文字不可 |
+
+`github` config:
+
+| field | type | required | rule |
+|---|---|---:|---|
+| `owner` | string | yes | 空文字不可 |
+| `repo` | string | yes | 空文字不可 |
+| `installation_id` | string | no | GitHub App 利用時の識別子 |
+| `default_branch` | string | no | 未指定時の解決は sync adapter 側で行う |
+
+### 5.3 Error contract
+All errors are structured MCP errors with stable code and readable message.
+
+| code | condition |
+|---|---|
+| `INVALID_SOURCE_TYPE` | `type` が enum 外、または string ではない |
+| `UNSUPPORTED_SOURCE_TYPE` | enum として識別できるが MVP 非対応 |
+| `INVALID_SOURCE_NAME` | `name` が空、長すぎる、または string ではない |
+| `INVALID_STORAGE_MODE` | `storage_mode` が enum 外 |
+| `INVALID_SOURCE_CONFIG` | `config` が object ではない、または必須 key を満たさない |
+| `SOURCE_REGISTRY_UNAVAILABLE` | storage adapter が登録処理を完了できない |
+
+### 5.4 DB スキーマ
+Initial storage adapter must persist at least these logical fields for `Source`:
+
+| field | type | rule |
+|---|---|---|
+| `id` | string | `source_id` と一致 |
+| `type` | string | validated source type |
+| `name` | string | trim 済み |
+| `config` | JSON object | secret は入れない |
+| `storage_mode` | string | validated storage mode |
+| `created_at` | ISO datetime string | server generated |
+| `updated_at` | ISO datetime string | server generated |
+
+## 6. 非機能要件
 ### 6.1 性能
-### 6.2 可用性 (SLO)
+登録処理は local storage adapter 利用時に p95 200ms 以下を目標にする。外部 API 接続確認を登録 path に含めないことで、登録の latency を source provider の状態から分離する。
 
-### 6.3 セキュリティ要件 [app/api プロファイルで必須]
+### 6.2 可用性
+MCP server process が動作しており storage adapter が利用可能な場合、登録 tool は成功または structured error を返す。storage adapter 障害時は retry せず `SOURCE_REGISTRY_UNAVAILABLE` を返す。
 
-#### 6.3.1 脅威モデル (STRIDE)
+### 6.3 セキュリティ要件
+#### 6.3.1 STRIDE
 | カテゴリ | 該当内容 |
 |---|---|
-| Spoofing（なりすまし） | |
-| Tampering（改ざん） | |
-| Repudiation（否認） | |
-| Information Disclosure（情報漏洩） | |
-| Denial of Service（DoS） | |
-| Elevation of Privilege（権限昇格） | |
+| Spoofing | Source 登録者 identity は MCP session context から受け取り、source record または audit event に渡せる interface を用意する。 |
+| Tampering | `config` は JSON object として validate し、adapter type ごとの必須 key を検証してから保存する。 |
+| Repudiation | 登録成功と失敗を audit event 化できる service 境界を設ける。 |
+| Information Disclosure | `config` には token や secret を保存しない。credential は将来の secret provider 経由に限定する。 |
+| Denial of Service | name length、array item、config shape を制限し、巨大 payload を validation で拒否する。 |
+| Elevation of Privilege | Source-level permission enforcement は後続 retrieval/sync 側でも必須。登録時は actor identity を権限評価に渡せる設計にする。 |
 
-※「N/A」は理由を明記。単なる N/A は Gate 0 で BLOCK される。
-
-#### 6.3.2 OWASP Top 10:2021 マッピング
-- A01:2021 Broken Access Control:
-- A02:2021 Cryptographic Failures:
-- A03:2021 Injection:
-- A04:2021 Insecure Design:
-- A05:2021 Security Misconfiguration:
-- A06:2021 Vulnerable and Outdated Components:
-- A07:2021 Identification and Authentication Failures:
-- A08:2021 Software and Data Integrity Failures:
-- A09:2021 Security Logging and Monitoring Failures:
-- A10:2021 Server-Side Request Forgery:
-
-（該当する項目のみ記入、N/A は理由必須）
+#### 6.3.2 OWASP Top 10:2021
+- A01 Broken Access Control: Source registration must preserve actor identity for future RBAC or ABAC checks.
+- A02 Cryptographic Failures: Secrets must not be stored in source config.
+- A03 Injection: Config values are treated as data and are not interpolated into shell commands.
+- A04 Insecure Design: Registration does not imply read permission to source contents.
+- A05 Security Misconfiguration: Unsupported adapters fail closed.
+- A06 Vulnerable and Outdated Components: Dependency checks are handled by CI and package lock review.
+- A07 Identification and Authentication Failures: Authentication is delegated to MCP host/session context for this feature.
+- A08 Software and Data Integrity Failures: Source records keep provenance fields and are not silently rewritten.
+- A09 Security Logging and Monitoring Failures: Register success and failure paths produce audit events.
+- A10 Server-Side Request Forgery: Registration does not fetch remote URLs; GitHub access occurs in adapter-controlled sync.
 
 #### 6.3.3 データ分類
 - 本 feature が扱うデータ:
-  - [ ] PII（個人識別情報）
-  - [ ] PCI（決済カード情報）
-  - [ ] 機密（社内機密、顧客機密）
+  - [ ] PII
+  - [ ] PCI
+  - [x] 機密
   - [ ] 公開
-- 分類に応じた追加要件:
+- 分類理由: Repository names, paths, and source configuration can reveal internal project structure.
+- 追加要件: Source config must not include tokens, passwords, private keys, or raw file contents.
 
-### 6.4 監査ログ要件 [該当時]
+### 6.4 監査ログ要件
+Audit event fields: `event_type`, `source_id` when available, `actor_id` when available, `source_type`, `storage_mode`, `result`, `error_code` when failed, `created_at`.
 
-## 7. 受入基準 (Acceptance Criteria) [必須・Gherkin形式]
-### 7.1 [SPEC-SOURCEREGISTRY-001-001] の受入基準
+## 7. 受入基準
+### AC-SOURCEREGISTRY-001-001: local files source registration
 ```gherkin
-Feature: sourceregistry-001
-  Scenario:
-    Given
-    When
-    Then
+Feature: Source Registry
+  Scenario: Register a local files source
+    Given an MCP client sends type "local_files", name "Project Docs", config with root_path "/workspace/docs", and storage_mode "index"
+    When kodama.register_source is invoked
+    Then the response contains a non-empty source_id and status "registered"
 ```
 
-## 8. 前提・依存 [必須]
-## 9. リスクと緩和策 [該当時]
+### AC-SOURCEREGISTRY-001-002: github source registration
+```gherkin
+Feature: Source Registry
+  Scenario: Register a GitHub source
+    Given an MCP client sends type "github", name "Kodama Repo", config with owner "watchout" and repo "kodama", and storage_mode "reference"
+    When kodama.register_source is invoked
+    Then the response contains a non-empty source_id and status "registered"
+```
 
-## 10. 制御機構選定原則 [必須]
+### AC-SOURCEREGISTRY-001-003: invalid source type
+```gherkin
+Feature: Source Registry
+  Scenario: Reject an unsupported source type
+    Given an MCP client sends type "slack", name "Team Slack", config with channel "engineering", and storage_mode "index"
+    When kodama.register_source is invoked
+    Then the tool returns error code "UNSUPPORTED_SOURCE_TYPE"
+```
 
-> ADF 原則 0 (script 制御絶対 = LLM judgment 排除) を満たす実装機構の選定根拠を明記する。
-> Canonical reference: [script 制御 vs Boris 式 Hook — 使い分け原則 (ADF 原則 0 整合)](https://www.notion.so/35ad2b26f3dc8122b9f5e513b769d4e4)
+### AC-SOURCEREGISTRY-001-004: invalid config
+```gherkin
+Feature: Source Registry
+  Scenario: Reject missing required local files config
+    Given an MCP client sends type "local_files", name "Project Docs", config without root_path, and storage_mode "index"
+    When kodama.register_source is invoked
+    Then the tool returns error code "INVALID_SOURCE_CONFIG"
+```
 
+## 8. 前提・依存
+- MCP SDK is available through `@modelcontextprotocol/sdk`.
+- Initial transport is stdio as defined in `SSOT-3_API_CONTRACT.md`.
+- Source entity semantics follow `SSOT-4_DATA_MODEL.md`.
+- Storage implementation is behind an adapter so local SQLite, Postgres, or in-memory test storage can be swapped without changing MCP handlers.
+- Human approval and memory promotion are outside this feature.
+
+## 9. リスクと緩和策
+| risk | impact | mitigation |
+|---|---|---|
+| Source config accidentally stores secrets | Credential leak through persisted config | Reject known secret-like keys and document credential provider as future boundary |
+| Registration validates too much by calling providers | Registration becomes slow and flaky | Do not perform provider network calls in this feature |
+| Duplicate sources accumulate | Operators may register same repo twice | Accept for MVP and expose unique `source_id`; deduplication can be added later |
+
+## 10. 制御機構選定原則
 ### 10.1 採択原則
-- **default**: script 制御 (daemon / cron / launchd / pg trigger / GH Actions)
-- **fallback**: Boris 式 Hook、不可避 4 case のみ:
-  1. tool 呼出 BLOCK (PreToolUse)
-  2. LLM context 注入 (UserPromptSubmit / SessionStart)
-  3. session 起動時 state 復元 (SessionStart)
-  4. tool 実行直後の検証 (PostToolUse)
+This feature uses script-controlled deterministic checks for gates and tests. Hook-based control is limited to repository guardrails outside runtime behavior.
 
 ### 10.2 本 spec の選定
-本 feature の各 functional requirement について、**機構** と **不可避 case 該当根拠** を明記:
-
-| FR | 機構 (script / Hook / 両者) | 不可避 case 該当 (Hook のみ) | 根拠 |
+| FR | 機構 | 不可避 case 該当 | 根拠 |
 |---|---|---|---|
-|  |  |  |  |
+| FR-SOURCEREGISTRY-001 | script | 該当なし: runtime service と unit tests で制御する | MCP tool handler and service tests can deterministically verify registration |
+| FR-SOURCEREGISTRY-002 | script | 該当なし: validation table で制御する | Source type enum validation is deterministic |
+| FR-SOURCEREGISTRY-003 | script | 該当なし: validation table で制御する | Storage mode enum validation is deterministic |
+| FR-SOURCEREGISTRY-004 | script | 該当なし: schema validation と tests で制御する | Input shape validation does not require LLM hook |
+| FR-SOURCEREGISTRY-005 | script | 該当なし: storage adapter test で制御する | Source id uniqueness is testable |
+| FR-SOURCEREGISTRY-006 | script | 該当なし: service boundary tests で制御する | Audit event emission can be asserted in tests |
 
 ### 10.3 違反時 rollback
-script で代替可能なのに Hook で実装 → CTO L3 review で reject、refactor 要請。
-詳細: Notion canonical doc 参照。
+Runtime behavior must not depend on LLM judgment. If validation or persistence is implemented as hook-only behavior, the implementation is rejected and refactored into service code plus deterministic tests.
 
-## 11. Test Coverage Gap [SPEC-DOC4L-012、新規 feature 必須]
+## 11. Test Coverage Gap
+| gap 種別 | 内容 | 影響範囲 | 解消アクション | verify 方法 |
+|---|---|---|---|---|
+| Coverage gap | MCP behavior tests are not yet implemented for register_source | Tool contract regressions | Add Vitest tests for normal, invalid type, invalid config, storage failure | `npm test` |
+| Environment gap | Only local Node environment is configured | Provider-specific behavior may differ later | Keep provider network calls out of registration | Unit tests with fake storage |
+| Tooling gap | No schema validation library is selected yet | Manual validation drift risk | Implement typed validation helpers or introduce a schema library through SSOT update | Typecheck and validation tests |
+| Skill gap | MCP SDK registration patterns need implementation review | Incorrect handler shape | Compare implementation with official MCP SDK usage during implementation | Code review and behavior tests |
 
-> [文献確認: SPEC-DOC4L-012] 新規 feature 起票時に 4 種 gap を必須評価。
+## 12. Acceptance Criteria BDD
+| acceptance id | test file |
+|---|---|
+| AC-SOURCEREGISTRY-001-001 | `tests/source-registry.test.ts` |
+| AC-SOURCEREGISTRY-001-002 | `tests/source-registry.test.ts` |
+| AC-SOURCEREGISTRY-001-003 | `tests/source-registry.test.ts` |
+| AC-SOURCEREGISTRY-001-004 | `tests/source-registry.test.ts` |
 
-| gap 種別 | 内容 | 解消アクション |
-|---|---|---|
-| Coverage gap | 仕様カバレッジ (要件 → test 漏れ) | test 追加 |
-| Environment gap | 環境カバレッジ (dev/staging/production の差異漏れ) | 環境用意 |
-| Tooling gap | 検証ツール不足 (mock では verify 不可な real env 検査漏れ) | tool 導入 |
-| Skill gap | 知識不足 (担当 dev の expertise 不足) | pair / 学習 / 委譲 |
-
-各 gap に対し: gap 内容 / 影響範囲 / 解消アクション / verify 方法 を明示。
-
-## 12. Acceptance Criteria (BDD) [SPEC-DOC4L-013、必須]
-
-> [文献確認: SPEC-DOC4L-013] §7 Gherkin Scenario と `tests/acceptance/` test を **1:1** で配置。
-
-format 規約:
-- `### AC-SOURCEREGISTRY-001-001` heading
-- 直下に gherkin code block (Given/When/Then)
-- 対応 test ファイル: `tests/acceptance/AC-SOURCEREGISTRY-001-001.test.{ts,sh}`
-
-```gherkin
-### AC-SOURCEREGISTRY-001-001
-Feature: sourceregistry-001
-  Scenario: {scenario-name}
-    Given
-    When
-    Then
-```
-
-## 13. Invariants (Property-Based) [SPEC-DOC4L-014、重要 feature 該当時]
-
-> [文献確認: SPEC-DOC4L-014] 重要 feature の invariant を明示、`tests/property/` に fast-check で 1000+ runs verify。
-
-```
+## 13. Invariants Property-Based
 ### INV-SOURCEREGISTRY-001-001
-内容: 入力空間に対して常に成立すべき property
-反例検出時: counterexample 記録 + test fail
-```
+For every accepted registration input, returned `source_id` is non-empty and status is `registered`.
 
-## 14. Traceability Matrix [SPEC-DOC4L-015、必須]
+### INV-SOURCEREGISTRY-001-002
+For every rejected registration input, the tool returns one of the stable error codes listed in §5.3 and does not persist a Source record.
 
-> [文献確認: SPEC-DOC4L-015] 要件 ↔ test ↔ code の 3 者 link を `traceability.csv` (or 同等) で機械可読化。
-
+## 14. Traceability Matrix
 | 要件 ID | test ID | code 範囲 |
 |---|---|---|
-| FR-XXX or AC-XXX | test file path + test name | file path + line range or symbol |
+| FR-SOURCEREGISTRY-001 | AC-SOURCEREGISTRY-001-001, AC-SOURCEREGISTRY-001-002 | `src/services/source-registry-service.ts` |
+| FR-SOURCEREGISTRY-002 | AC-SOURCEREGISTRY-001-003 | `src/services/source-registry-validation.ts` |
+| FR-SOURCEREGISTRY-003 | validation unit tests | `src/services/source-registry-validation.ts` |
+| FR-SOURCEREGISTRY-004 | AC-SOURCEREGISTRY-001-004 | `src/services/source-registry-validation.ts` |
+| FR-SOURCEREGISTRY-005 | source id unit tests | `src/services/source-registry-service.ts` |
+| FR-SOURCEREGISTRY-006 | audit event unit tests | `src/services/source-registry-service.ts` |
 
-`framework trace verify` で完全性を CI gate 検証 (drift 検出時 exit 2)。
+## §3-E 入出力例
+| case | kind | input | expected |
+|---|---|---|---|
+| E1 | normal | local_files with name Project Docs, root_path /workspace/docs, storage_mode index | status registered with source_id |
+| E2 | normal | github with owner watchout, repo kodama, storage_mode reference | status registered with source_id |
+| E3 | abnormal | type slack | error code UNSUPPORTED_SOURCE_TYPE |
+| E4 | abnormal | name is empty string | error code INVALID_SOURCE_NAME |
+| E5 | abnormal | storage_mode archive | error code INVALID_STORAGE_MODE |
+| E6 | abnormal | local_files config without root_path | error code INVALID_SOURCE_CONFIG |
 
-## §Evidence (本 spec / PR の主張根拠) [SPEC-DOC4L-016 per、必須]
+## §3-F 境界値
+| item | boundary | expected |
+|---|---|---|
+| name length | 1 trimmed character | accepted |
+| name length | 120 trimmed characters | accepted |
+| name length | 121 trimmed characters | `INVALID_SOURCE_NAME` |
+| config | empty object for local_files | `INVALID_SOURCE_CONFIG` |
+| include_globs | empty array | accepted |
 
-> [文献確認: SPEC-DOC4L-016] 本 section は SPEC / IMPL / VERIFY / OPS 各 file 必須。`[検証済]` 断定は必ず本 section の sub-entry に紐付ける。Discord msg / private memory ref は禁止 (repo-only)。
+## §3-G 例外応答
+| condition | error code | persistence |
+|---|---|---|
+| unsupported source type | `UNSUPPORTED_SOURCE_TYPE` | no Source record |
+| invalid source name | `INVALID_SOURCE_NAME` | no Source record |
+| invalid storage mode | `INVALID_STORAGE_MODE` | no Source record |
+| invalid config | `INVALID_SOURCE_CONFIG` | no Source record |
+| storage adapter unavailable | `SOURCE_REGISTRY_UNAVAILABLE` | no partial Source record |
 
-### 実 file 引用 (repo 内、grep で再検証可能)
-- `path/to/file.ts:42-50` (claim X の根拠) [content quoted]
+## §3-H Gherkin
+```gherkin
+Feature: Source Registry MCP tool
+  Scenario: Valid local files source is registered
+    Given a valid local_files registration input
+    When kodama.register_source handles the request
+    Then a Source record is created and the tool returns status "registered"
 
-### 実 DB query 出力
-- `psql -c "SELECT ..."`:
-  ```
-  (output)
-  ```
+  Scenario: Invalid source config is rejected
+    Given a local_files registration input without root_path
+    When kodama.register_source handles the request
+    Then the tool returns error code "INVALID_SOURCE_CONFIG"
+```
 
-### 実 log 抜粋
-- `tail -N /path/to/log`:
-  ```
-  (output)
-  ```
+## §Evidence
+### 実 file 引用
+- `docs/requirements/SSOT-0_PRD.md` states MVP includes local file and GitHub source adapters.
+- `docs/design/core/SSOT-3_API_CONTRACT.md` defines `kodama.register_source` input and output.
+- `docs/design/core/SSOT-4_DATA_MODEL.md` defines storage modes and Source entity semantics.
 
 ### Web 検索 / 公式 doc URL
-- https://... (claim Y の根拠)
-
-### `[検証済]` ラベル付き断定の根拠紐付け
-- claim X → 実 file 引用 §
-- claim Y → Web URL §
+- No external web source was used for this repository-local specification update.
