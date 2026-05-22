@@ -12,6 +12,13 @@ description: |
 実装完了後の最終品質ゲート。複数の専門家（R1-R5）がそれぞれの観点から
 レビューし、リリース可否を判定する。SSOT監査とコード監査も統合。
 
+## Review Authority
+
+`/review` は独立Review phaseであり、Producer (`/design`, `/implement`) の成果物に対して Approve / Reject / Block を出せる。
+Producer の自己チェック結果、I3 self-check、`shirube gate check` / `shirube trace verify` の実行結果は参考情報として扱う。
+
+`/review` はユーザー承認後に実行する。Producer phase から自動遷移してはいけない。
+
 ## ワークフロー
 
 ```
@@ -42,7 +49,7 @@ R5: Performance Analyst      → パフォーマンスを検証
 - [ ] カスタマイズログの変更が反映されている
 - [ ] 追跡マトリクス（Traceability Matrix）が更新されている
 
-**SSOT監査（`framework audit ssot` 相当）**:
+**SSOT監査（`shirube audit ssot` 相当）**:
 - §3-E/F/G/H の充足率を計算
 - SSOT間の参照整合性を検証
 - [要確認] マーカーが残っていないか確認

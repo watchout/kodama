@@ -41,6 +41,11 @@
         "type": "external",
         "id": "todo-worker-pool",
         "placeholder": true
+      },
+      "l3_governance_owner": {
+        "type": "external",
+        "id": "todo-l3-governance-owner",
+        "placeholder": true
       }
     }
   },
