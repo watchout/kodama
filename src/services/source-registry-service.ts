@@ -20,15 +20,21 @@ const MAX_ID_GENERATION_ATTEMPTS = 3;
 
 interface SourceRegistryServiceOptions {
   auditSink?: SourceRegistryAuditSink;
+  onAuditError?: (error: unknown, event: SourceRegistryAuditEvent) => void;
 }
 
 export class SourceRegistryService {
   private readonly store: SourceStore;
   private readonly auditSink?: SourceRegistryAuditSink;
+  private readonly onAuditError?: (
+    error: unknown,
+    event: SourceRegistryAuditEvent,
+  ) => void;
 
   constructor(store: SourceStore, options: SourceRegistryServiceOptions = {}) {
     this.store = store;
     this.auditSink = options.auditSink;
+    this.onAuditError = options.onAuditError;
   }
 
   async registerSource(
@@ -102,7 +108,11 @@ export class SourceRegistryService {
   }
 
   private async emitAudit(event: SourceRegistryAuditEvent): Promise<void> {
-    await this.auditSink?.(event);
+    try {
+      await this.auditSink?.(event);
+    } catch (error) {
+      this.onAuditError?.(error, event);
+    }
   }
 }
 

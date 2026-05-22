@@ -112,6 +112,38 @@ describe("SOURCEREGISTRY-001 Source Registry", () => {
         }),
       );
     });
+
+    it("does not report registration failure after source persistence when audit sink fails", async () => {
+      const auditError = new Error("audit unavailable");
+      const auditSink = vi.fn().mockRejectedValue(auditError);
+      const onAuditError = vi.fn();
+      const store = new InMemorySourceStore();
+      const service = new SourceRegistryService(store, {
+        auditSink,
+        onAuditError,
+      });
+
+      const result = await service.registerSource({
+        type: "github",
+        name: "Kodama Repo",
+        config: { owner: "watchout", repo: "kodama" },
+        storage_mode: "reference",
+      });
+
+      expect(result.status).toBe("registered");
+      expect(store.getSource(result.source_id)).toMatchObject({
+        id: result.source_id,
+        type: "github",
+      });
+      expect(onAuditError).toHaveBeenCalledWith(
+        auditError,
+        expect.objectContaining({
+          eventType: "source.registered",
+          result: "success",
+          sourceId: result.source_id,
+        }),
+      );
+    });
   });
 
   describe("validateRegisterSourceInput", () => {
