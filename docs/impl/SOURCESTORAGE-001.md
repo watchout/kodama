@@ -143,10 +143,10 @@ Audit metadata is produced through a sanitizer. It may include source type, stor
 - No new MCP tool is exposed.
 - No provider network calls are introduced.
 
-## 8. Open decisions
-| decision | default for implementation |
+## 8. Implementation decisions
+| decision | selected implementation |
 |---|---|
-| SQLite dependency | choose a local embedded driver with Node 20 support |
+| SQLite dependency | `better-sqlite3` with `@types/better-sqlite3` |
 | DB path config | keep constructor-driven in tests; runtime config can follow later |
 | local default account id | `acct_local` unless caller provides account id |
 | migration rollback | MVP uses up-only migrations; destructive rollback is not implemented |
@@ -155,3 +155,4 @@ Audit metadata is produced through a sanitizer. It may include source type, stor
 ### 実 file 引用
 - `src/adapters/source-store.ts` is the adapter seam.
 - `tests/source-registry.test.ts` covers current in-memory behavior and must remain green.
+- `package.json` includes `better-sqlite3` as the local embedded SQLite driver and `@types/better-sqlite3` for TypeScript support.

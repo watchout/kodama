@@ -23,7 +23,7 @@ describe("SOURCEREGISTRY-001 Source Registry", () => {
 
       expect(result.status).toBe("registered");
       expect(result.source_id).toMatch(/^src_/);
-      expect(store.getSource(result.source_id)).toMatchObject({
+      await expect(store.getSource(result.source_id)).resolves.toMatchObject({
         id: result.source_id,
         type: "local_files",
         name: "Project Docs",
@@ -44,7 +44,7 @@ describe("SOURCEREGISTRY-001 Source Registry", () => {
 
       expect(result.status).toBe("registered");
       expect(result.source_id).toMatch(/^src_/);
-      expect(store.getSource(result.source_id)).toMatchObject({
+      await expect(store.getSource(result.source_id)).resolves.toMatchObject({
         id: result.source_id,
         type: "github",
         name: "Kodama Repo",
@@ -65,7 +65,7 @@ describe("SOURCEREGISTRY-001 Source Registry", () => {
         }),
       ).rejects.toMatchObject({ code: "INVALID_SOURCE_CONFIG" });
 
-      expect(store.listSources()).toHaveLength(0);
+      await expect(store.listSources()).resolves.toHaveLength(0);
     });
 
     it("emits audit events for success and failure", async () => {
@@ -131,7 +131,7 @@ describe("SOURCEREGISTRY-001 Source Registry", () => {
       });
 
       expect(result.status).toBe("registered");
-      expect(store.getSource(result.source_id)).toMatchObject({
+      await expect(store.getSource(result.source_id)).resolves.toMatchObject({
         id: result.source_id,
         type: "github",
       });

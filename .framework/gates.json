@@ -45,7 +45,7 @@
         "message": "Framework management (.framework/): found"
       }
     ],
-    "checkedAt": "2026-05-23T09:26:15.540Z"
+    "checkedAt": "2026-05-23T22:25:16.340Z"
   },
   "gateB": {
     "status": "passed",
@@ -75,7 +75,7 @@
         "message": "Feature SPEC/IMPL/VERIFY/OPS docs are ready for implementation"
       }
     ],
-    "checkedAt": "2026-05-23T09:26:15.545Z"
+    "checkedAt": "2026-05-23T22:25:16.344Z"
   },
   "gateC": {
     "status": "passed",
@@ -97,7 +97,7 @@
         "missingSections": []
       }
     ],
-    "checkedAt": "2026-05-23T09:26:15.547Z"
+    "checkedAt": "2026-05-23T22:25:16.346Z"
   },
-  "updatedAt": "2026-05-23T09:26:15.547Z"
+  "updatedAt": "2026-05-23T22:25:16.346Z"
 }

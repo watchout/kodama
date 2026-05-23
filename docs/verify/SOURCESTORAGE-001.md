@@ -38,7 +38,7 @@ Feature: Source Storage
 Feature: Source Storage
   Scenario: Record durable source audit
     Given a successful source registration
-    When the audit sink receives source.registered
+    When SourceAuditStore records source.registered
     Then source_audit_events contains the event with account_id, source_id, and result
 ```
 

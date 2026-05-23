@@ -4,6 +4,9 @@ export type SourceType = (typeof SOURCE_TYPES)[number];
 export const STORAGE_MODES = ["copy", "index", "reference", "ephemeral"] as const;
 export type StorageMode = (typeof STORAGE_MODES)[number];
 
+export const SOURCE_VISIBILITIES = ["private", "account", "restricted"] as const;
+export type SourceVisibility = (typeof SOURCE_VISIBILITIES)[number];
+
 export type SourceRegistryErrorCode =
   | "INVALID_SOURCE_TYPE"
   | "UNSUPPORTED_SOURCE_TYPE"
@@ -41,6 +44,11 @@ export interface RegisterSourceOutput {
 
 export interface SourceRecord {
   id: string;
+  accountId: string;
+  ownerId?: string;
+  workspaceId?: string;
+  scopeViewId?: string;
+  visibility: SourceVisibility;
   type: SourceType;
   name: string;
   config: SourceConfig;
@@ -50,17 +58,24 @@ export interface SourceRecord {
 }
 
 export interface RegistrationContext {
+  accountId?: string;
   actorId?: string;
+  ownerId?: string;
+  workspaceId?: string;
+  scopeViewId?: string;
+  visibility?: SourceVisibility;
 }
 
 export interface SourceRegistryAuditEvent {
   eventType: "source.registered" | "source.registration_failed";
   result: "success" | "failure";
   sourceId?: string;
+  accountId?: string;
   actorId?: string;
   sourceType?: string;
   storageMode?: string;
   errorCode?: SourceRegistryErrorCode;
+  metadata?: Record<string, unknown>;
   createdAt: string;
 }
 

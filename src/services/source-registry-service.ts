@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   SourceIdCollisionError,
+  isDurableAuditSourceStore,
   type SourceStore,
 } from "../adapters/source-store.js";
 import type {
@@ -17,6 +18,8 @@ import {
 } from "./source-registry-validation.js";
 
 const MAX_ID_GENERATION_ATTEMPTS = 3;
+const DEFAULT_ACCOUNT_ID = "acct_local";
+const DEFAULT_VISIBILITY = "private";
 
 interface SourceRegistryServiceOptions {
   auditSink?: SourceRegistryAuditSink;
@@ -49,6 +52,11 @@ export class SourceRegistryService {
         const sourceId = createSourceId();
         const record: SourceRecord = {
           id: sourceId,
+          accountId: context.accountId ?? DEFAULT_ACCOUNT_ID,
+          ...(context.ownerId ? { ownerId: context.ownerId } : {}),
+          ...(context.workspaceId ? { workspaceId: context.workspaceId } : {}),
+          ...(context.scopeViewId ? { scopeViewId: context.scopeViewId } : {}),
+          visibility: context.visibility ?? DEFAULT_VISIBILITY,
           type: validated.type,
           name: validated.name,
           config: validated.config,
@@ -56,18 +64,28 @@ export class SourceRegistryService {
           createdAt: now,
           updatedAt: now,
         };
+        const successAuditEvent: SourceRegistryAuditEvent = {
+          accountId: record.accountId,
+          actorId: context.actorId,
+          createdAt: now,
+          eventType: "source.registered",
+          metadata: {
+            phase: "source_registration",
+          },
+          result: "success",
+          sourceId,
+          sourceType: validated.type,
+          storageMode: validated.storage_mode,
+        };
 
         try {
-          await this.store.createSource(record);
-          await this.emitAudit({
-            actorId: context.actorId,
-            createdAt: now,
-            eventType: "source.registered",
-            result: "success",
-            sourceId,
-            sourceType: validated.type,
-            storageMode: validated.storage_mode,
-          });
+          if (isDurableAuditSourceStore(this.store)) {
+            await this.store.createSourceWithAudit(record, successAuditEvent);
+          } else {
+            await this.store.createSource(record);
+          }
+
+          await this.emitExternalAudit(successAuditEvent);
 
           return {
             source_id: sourceId,
@@ -94,20 +112,41 @@ export class SourceRegistryService {
       );
     } catch (error) {
       if (error instanceof SourceRegistryError) {
-        await this.emitAudit({
+        const failureEvent: SourceRegistryAuditEvent = {
+          accountId: context.accountId ?? DEFAULT_ACCOUNT_ID,
           actorId: context.actorId,
           createdAt: new Date().toISOString(),
           errorCode: error.code,
           eventType: "source.registration_failed",
+          metadata: {
+            phase: "validation_or_registration",
+          },
           result: "failure",
-        });
+        };
+
+        await this.recordDurableFailureAudit(failureEvent);
+        await this.emitExternalAudit(failureEvent);
       }
 
       throw error;
     }
   }
 
-  private async emitAudit(event: SourceRegistryAuditEvent): Promise<void> {
+  private async recordDurableFailureAudit(
+    event: SourceRegistryAuditEvent,
+  ): Promise<void> {
+    if (!isDurableAuditSourceStore(this.store)) {
+      return;
+    }
+
+    try {
+      await this.store.recordAuditEvent(event);
+    } catch (error) {
+      this.onAuditError?.(error, event);
+    }
+  }
+
+  private async emitExternalAudit(event: SourceRegistryAuditEvent): Promise<void> {
     try {
       await this.auditSink?.(event);
     } catch (error) {
