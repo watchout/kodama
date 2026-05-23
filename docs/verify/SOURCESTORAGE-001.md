@@ -42,7 +42,39 @@ Feature: Source Storage
     Then source_audit_events contains the event with account_id, source_id, and result
 ```
 
-### 1.4 AC-SOURCESTORAGE-001-004 no production memory fallback
+### 1.4 AC-SOURCESTORAGE-001-004 atomic source and audit success
+```gherkin
+Feature: Source Storage
+  Scenario: Roll back source when success audit cannot be written
+    Given SQLiteSourceStore can insert a source
+    And SourceAuditStore fails to insert source.registered
+    When source registration is attempted
+    Then the source row is not committed
+    And registration fails with SOURCE_REGISTRY_UNAVAILABLE
+```
+
+### 1.5 AC-SOURCESTORAGE-001-005 validation failure audit
+```gherkin
+Feature: Source Storage
+  Scenario: Record validation failure when durable audit is available
+    Given SQLite durable audit storage is open
+    When source registration fails validation
+    Then source_audit_events contains source.registration_failed
+    And the audit metadata does not contain raw source config
+```
+
+### 1.6 AC-SOURCESTORAGE-001-006 store failure audit
+```gherkin
+Feature: Source Storage
+  Scenario: Record source store failure after SQLite opens
+    Given SQLite durable audit storage is open
+    And the source insert fails
+    When source registration is attempted
+    Then no source row is committed
+    And source_audit_events contains a failure event with SOURCE_REGISTRY_UNAVAILABLE
+```
+
+### 1.7 AC-SOURCESTORAGE-001-007 no production memory fallback
 ```gherkin
 Feature: Source Storage
   Scenario: SQLite unavailable
@@ -63,6 +95,9 @@ Feature: Source Storage
 | 入力 | 期待するエラー |
 |---|---|
 | SQLite path cannot open | `SOURCE_REGISTRY_UNAVAILABLE` |
+| success audit insert fails | source row rolled back and `SOURCE_REGISTRY_UNAVAILABLE` |
+| validation failure with audit store open | durable failure audit inserted |
+| source insert failure after DB open | source row rolled back and failure audit attempted |
 | duplicate source id | retry or collision error path |
 | secret-like config key | `INVALID_SOURCE_CONFIG` |
 | malformed persisted JSON | store read failure |
@@ -71,6 +106,10 @@ Feature: Source Storage
 - [ ] SQLite source store exists.
 - [ ] Migration runner exists.
 - [ ] Durable audit store exists.
+- [ ] Source registration success and success audit are committed atomically.
+- [ ] Validation failure audit is tested.
+- [ ] Store failure audit is tested.
+- [ ] Audit metadata sanitizer is tested.
 - [ ] Existing source registry tests pass.
 - [ ] New source storage tests pass.
 - [ ] `npm run type-check` passes.
@@ -85,10 +124,12 @@ Feature: Source Storage
 | AC-SOURCESTORAGE-001-001 | FR-SOURCESTORAGE-001, FR-SOURCESTORAGE-002 | `SQLiteSourceStore` |
 | AC-SOURCESTORAGE-001-002 | FR-SOURCESTORAGE-003, FR-SOURCESTORAGE-004 | `SourceRecord` |
 | AC-SOURCESTORAGE-001-003 | FR-SOURCESTORAGE-005 | `SourceAuditStore` |
-| AC-SOURCESTORAGE-001-004 | FR-SOURCESTORAGE-001 | store error mapping |
+| AC-SOURCESTORAGE-001-004 | FR-SOURCESTORAGE-005 | transaction-backed source and audit insert |
+| AC-SOURCESTORAGE-001-005 | FR-SOURCESTORAGE-005, FR-SOURCESTORAGE-007 | validation failure audit and sanitizer |
+| AC-SOURCESTORAGE-001-006 | FR-SOURCESTORAGE-005 | store failure audit |
+| AC-SOURCESTORAGE-001-007 | FR-SOURCESTORAGE-001 | store error mapping |
 
 ## §Evidence
 ### 実 file 引用
 - `package.json` defines `npm run type-check`, `npm test`, and `npm run build`.
 - `docs/spec/SOURCESTORAGE-001.md` defines acceptance criteria.
-

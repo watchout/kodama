@@ -29,8 +29,12 @@ SOURCESTORAGE-001 は standard/lightweight Shirube mode で進める。strict st
 - Account is the primary namespace field for future multi-agent and multi-LLM access.
 - Project/workspace/scope view is optional policy metadata, not the root partition.
 
-## 4. Pending governance
+## 4. Audit operation
+- Successful source registration requires both the source row and `source.registered` audit row to commit.
+- If SQLite cannot open, durable audit is unavailable and the structured error path is the source of truth for that failed attempt.
+- Audit metadata is sanitized and must not contain raw source config or secret-like values.
+
+## 5. Pending governance
 - `.github/workflows/merge-authority.yml` remains pending until governance activation.
 - `.framework/archive/` remains out of commit scope.
-- Role bindings and publishPolicy are not configured.
-
+- Role bindings are placeholder-only and `workflow.publishPolicy` remains `draft_only`; strict governance is not active.

@@ -49,6 +49,14 @@ Source record は optional な `workspace_id`、`scope_view_id`、`visibility`�
 ### 4.5 FR-SOURCESTORAGE-005: Durable audit log
 Source registration success/failure と store failure は durable audit log に保存できる。audit log は event_type、account_id、actor_id、source_id、result、error_code、created_at、metadata を保持する。
 
+For successful registration, source creation and the `source.registered` audit event must be committed in the same SQLite transaction. An implementation must not commit `sources` while losing the corresponding success audit event.
+
+For validation failures, the service must write `source.registration_failed` to durable audit when SQLite is open and the durable audit store is available. If SQLite cannot be opened before the audit write, durable audit is impossible; the service returns the structured error and reports the audit failure through the configured audit-error boundary.
+
+For store failures after SQLite is open, the source write must be rolled back and a failure audit event must be attempted in a separate transaction. If that failure-audit insert also fails, the caller still receives `SOURCE_REGISTRY_UNAVAILABLE`, and the audit insert failure is reported through the audit-error boundary.
+
+Audit `metadata` must never contain raw source config, tokens, credentials, private keys, or secret-like key/value pairs. Metadata may contain sanitized config shape, source type, storage mode, and failure classification.
+
 ### 4.6 FR-SOURCESTORAGE-006: Migration boundary
 SQLite schema migration は explicit version と applied_at を持つ。adapter 起動時に必要 migration を適用できる。
 
@@ -112,7 +120,19 @@ If SQLite is unavailable, registration returns `SOURCE_REGISTRY_UNAVAILABLE`. Th
 - A10 Server-Side Request Forgery: This feature performs no remote fetches.
 
 ### 6.4 監査ログ要件
-Audit events must be written for successful registration, validation failure when available at service boundary, and store failure.
+Audit events must be written for successful registration, validation failure when durable audit storage is available, and store failure after SQLite has opened.
+
+Atomicity rules:
+
+| case | source row | audit row | transaction rule |
+|---|---|---|---|
+| registration success | committed | committed | same transaction |
+| success audit insert fails | rolled back | not committed | return `SOURCE_REGISTRY_UNAVAILABLE` |
+| validation failure with DB available | not created | committed failure event | separate audit insert |
+| SQLite open unavailable | not created | not durable | return structured error and invoke audit-error boundary |
+| source insert/store failure after DB open | rolled back | attempted failure event | separate audit insert |
+
+Audit metadata must be sanitized. It may include source type, storage mode, account id, actor id, failure phase, and error code. It must not include raw config or secret-like keys.
 
 ## 7. 受入基準
 ### AC-SOURCESTORAGE-001-001: durable source create/read
@@ -142,7 +162,39 @@ Feature: Source Storage
     Then source_audit_events contains the event with account_id, source_id, and result
 ```
 
-### AC-SOURCESTORAGE-001-004: no production memory fallback
+### AC-SOURCESTORAGE-001-004: atomic source and audit success
+```gherkin
+Feature: Source Storage
+  Scenario: Roll back source when success audit cannot be written
+    Given SQLiteSourceStore can insert a source
+    And SourceAuditStore fails to insert source.registered
+    When source registration is attempted
+    Then the source row is not committed
+    And registration fails with SOURCE_REGISTRY_UNAVAILABLE
+```
+
+### AC-SOURCESTORAGE-001-005: validation failure audit
+```gherkin
+Feature: Source Storage
+  Scenario: Record validation failure when durable audit is available
+    Given SQLite durable audit storage is open
+    When source registration fails validation
+    Then source_audit_events contains source.registration_failed
+    And the audit metadata does not contain raw source config
+```
+
+### AC-SOURCESTORAGE-001-006: store failure audit
+```gherkin
+Feature: Source Storage
+  Scenario: Record source store failure after SQLite opens
+    Given SQLite durable audit storage is open
+    And the source insert fails
+    When source registration is attempted
+    Then no source row is committed
+    And source_audit_events contains a failure event with SOURCE_REGISTRY_UNAVAILABLE
+```
+
+### AC-SOURCESTORAGE-001-007: no production memory fallback
 ```gherkin
 Feature: Source Storage
   Scenario: SQLite unavailable
@@ -190,6 +242,9 @@ If source persistence depends on prompt text, non-durable in-memory fallback, or
 | AC-SOURCESTORAGE-001-002 | `tests/source-storage.test.ts` |
 | AC-SOURCESTORAGE-001-003 | `tests/source-storage.test.ts` |
 | AC-SOURCESTORAGE-001-004 | `tests/source-storage.test.ts` |
+| AC-SOURCESTORAGE-001-005 | `tests/source-storage.test.ts` |
+| AC-SOURCESTORAGE-001-006 | `tests/source-storage.test.ts` |
+| AC-SOURCESTORAGE-001-007 | `tests/source-storage.test.ts` |
 
 ## §Evidence
 ### 実 file 引用
