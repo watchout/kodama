@@ -24,6 +24,18 @@ Kodama supports four storage modes:
 
 External system, repository, folder, document collection, database, or stream.
 
+Kodama's root namespace is account-bound. A `Source` belongs to an account/tenant first, not to an agent, runtime, local directory, or project.
+
+Initial ownership fields:
+
+- `account_id`: primary account/tenant boundary.
+- `owner_id`: human or service owner when known.
+- `workspace_id`: optional workflow grouping.
+- `scope_view_id`: optional policy/scope view.
+- `visibility`: `private`, `account`, or `restricted`.
+
+Project/category are not the primary storage hierarchy. They may appear as metadata or scope-policy views over connected sources.
+
 ### `Document`
 
 A retrievable source item: page, file, issue, PR, message thread, transcript, or record.

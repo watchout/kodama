@@ -45,7 +45,7 @@
         "message": "Framework management (.framework/): found"
       }
     ],
-    "checkedAt": "2026-05-23T05:49:36.522Z"
+    "checkedAt": "2026-05-23T06:38:19.362Z"
   },
   "gateB": {
     "status": "passed",
@@ -75,7 +75,7 @@
         "message": "Feature SPEC/IMPL/VERIFY/OPS docs are ready for implementation"
       }
     ],
-    "checkedAt": "2026-05-23T05:49:36.527Z"
+    "checkedAt": "2026-05-23T06:38:19.366Z"
   },
   "gateC": {
     "status": "passed",
@@ -84,7 +84,7 @@
         "name": "Gate C (4-layer feature docs)",
         "passed": true,
         "status": "pass",
-        "message": "4-layer feature docs validated (2 spec files, 8 trace nodes)",
+        "message": "4-layer feature docs validated (3 spec files, 12 trace nodes)",
         "filePath": "docs/spec",
         "missingSections": []
       },
@@ -97,7 +97,7 @@
         "missingSections": []
       }
     ],
-    "checkedAt": "2026-05-23T05:49:36.528Z"
+    "checkedAt": "2026-05-23T06:38:19.368Z"
   },
-  "updatedAt": "2026-05-23T05:49:36.528Z"
+  "updatedAt": "2026-05-23T06:38:19.368Z"
 }
