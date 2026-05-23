@@ -24,6 +24,24 @@
 | core/SSOT-4_DATA_MODEL.md | Pending | Data Model |
 | core/SSOT-5_CROSS_CUTTING.md | Pending | Cross-Cutting Concerns |
 
+### Feature Specs
+| Document | Status | Description |
+|----------|--------|-------------|
+| spec/SOURCEREGISTRY-001.md | Draft | Source Registry MCP tool |
+| spec/STORAGE-001.md | Draft | SQLite-first persistent context store |
+
+### Implementation Plans
+| Document | Status | Description |
+|----------|--------|-------------|
+| impl/SOURCEREGISTRY-001.md | Draft | Source Registry implementation |
+| impl/STORAGE-001.md | Draft | Persistent context store implementation |
+
+### Verification Plans
+| Document | Status | Description |
+|----------|--------|-------------|
+| verify/SOURCEREGISTRY-001.md | Draft | Source Registry verification |
+| verify/STORAGE-001.md | Draft | Persistent context store verification |
+
 ### Development Standards (docs/standards/)
 | Document | Status | Description |
 |----------|--------|-------------|
