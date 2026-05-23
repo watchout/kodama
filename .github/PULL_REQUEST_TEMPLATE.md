@@ -1,26 +1,30 @@
 ## Summary
-<!-- What was implemented/fixed -->
+<!-- What changed and why -->
 
-## SSOT Reference
-- Feature: FEAT-XXX
-- Sections: SX
-- Path: docs/design/features/xxx/FEAT-XXX_name.md
+## 4-Layer Docs
+- SPEC: `docs/spec/<FEATURE-ID>.md`
+- IMPL: `docs/impl/<FEATURE-ID>.md`
+- VERIFY: `docs/verify/<FEATURE-ID>.md`
+- OPS: `docs/ops/<FEATURE-ID>.md`
 
-## Changes
-- [ ] Change 1
-- [ ] Change 2
+## Traceability
+- [ ] `shirube trace verify` passes
+- [ ] SPEC traces to IMPL / VERIFY / OPS
+- [ ] IMPL traces to SPEC / VERIFY / OPS
+- [ ] VERIFY traces to SPEC / IMPL
+- [ ] OPS traces to SPEC / IMPL
 
-## SSOT Compliance
-- [ ] All MUST requirements from S3 satisfied
-- [ ] S4 data spec matches implementation
-- [ ] S5 API spec matches implementation
-- [ ] S7 business rules correctly implemented
-- [ ] S10 test cases all implemented
+## MCP Contract
+- [ ] MCP tool names, schemas, and errors match `SSOT-3_API_CONTRACT`
+- [ ] Storage entities and persistence modes match `SSOT-4_DATA_MODEL`
+- [ ] No frontend/browser assumptions were introduced
 
-## Testing
-- [ ] Unit tests added
-- [ ] Integration tests added
-- [ ] All existing tests pass
+## Validation
+- [ ] `npm run build`
+- [ ] `npm run type-check`
+- [ ] `npm test`
+- [ ] `shirube gate spec`
+- [ ] `shirube gate check`
 
 ## Related Issue
-Closes #XXX
+Closes #

@@ -24,9 +24,81 @@ Kodama supports four storage modes:
 
 External system, repository, folder, document collection, database, or stream.
 
+Kodama's root namespace is account-bound. A `Source` belongs to an account/tenant first, not to an agent, runtime, local directory, or project.
+
+Initial ownership fields:
+
+- `account_id`: primary account/tenant boundary.
+- `owner_id`: human or service owner when known.
+- `workspace_id`: optional workflow grouping.
+- `scope_view_id`: optional policy/scope view.
+- `visibility`: `private`, `account`, or `restricted`.
+
+Project/category are not the primary storage hierarchy. They may appear as metadata or scope-policy views over connected sources.
+
 ### `Document`
 
 A retrievable source item: page, file, issue, PR, message thread, transcript, or record.
+
+### `DocumentChunk`
+
+Smallest searchable and citeable unit derived from a `Document`.
+
+```ts
+{
+  id: string;
+  document_id: string;
+  source_id: string;
+  ordinal: number;
+  text: string;
+  content_hash: string;
+  range?: {
+    start_line?: number;
+    end_line?: number;
+    start_byte?: number;
+    end_byte?: number;
+  };
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+```
+
+### `Entity`
+
+Named or inferred item that can participate in retrieval graph activation.
+
+Initial entity types:
+
+- `repo`
+- `file`
+- `symbol`
+- `issue`
+- `pull_request`
+- `task`
+- `decision`
+- `agent`
+- `product`
+- `topic`
+
+### `Relation`
+
+Weighted typed edge between documents, chunks, entities, and future context records.
+
+Initial relation types:
+
+- `contains`
+- `mentions`
+- `defines`
+- `derived_from`
+- `same_topic`
+- `co_changed`
+- `co_retrieved`
+- `supports`
+- `contradicts`
+- `supersedes`
+
+Relations are the primary mechanism for bio-inspired retrieval. Categories and tags are metadata or relation edges, not the main storage structure.
 
 ### `ContextRecord`
 
@@ -76,3 +148,16 @@ Raw sources are extracted into candidate memory. Candidate memory becomes approv
 - Write audit logs for reads, writes, syncs, and promotions.
 - Preserve source provenance on every context record.
 - Support no-telemetry and self-hosted operation.
+
+## 6. Retrieval Model
+
+Kodama retrieval is layered:
+
+1. Scope, permission, and ignore-policy filtering.
+2. Exact lookup for path, filename, symbol, issue, PR, and source ids.
+3. Lexical search through SQLite FTS5/BM25 in local mode.
+4. Relation expansion over `Relation` edges.
+5. Optional dense vector search, rerank, and hierarchical summaries in later features.
+6. Context pack assembly with source provenance.
+
+The system must avoid vector-only retrieval as the default. File and code search require exact anchors and lexical recall before semantic expansion.
